@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dodge Drive</title>
+  <style>
+    body {
+      margin: 0;
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      background: #111;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+
+    #gameWrap {
+      position: relative;
+      width: 520px;
+      height: 520px;
+      border: 4px solid #fff;
+      background: #1a1a1a;
+      box-shadow: 0 0 25px rgba(255,255,255,0.15);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #202020;
+    }
+
+    #hud {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 2;
+      font-size: 18px;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px #000;
+    }
+
+    #startOverlay,
+    #message {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+      background: rgba(0,0,0,0.52);
+      z-index: 3;
+    }
+
+    #startOverlay {
+      background: rgba(0,0,0,0.7);
+    }
+
+    #startOverlay.hidden,
+    #message.hidden {
+      display: none;
+    }
+
+    .small {
+      font-size: 16px;
+      opacity: 0.9;
+      display: block;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameWrap">
+    <div id="hud">Score: <span id="score">0</span> | Best: <span id="best">0</span></div>
+    <canvas id="gameCanvas" width="520" height="520"></canvas>
+
+    <div id="startOverlay">
+      <div>
+        <div>Dodge Drive</div>
+        <span class="small">Press an arrow key or Space to start</span>
+      </div>
+    </div>
+
+    <div id="message" class="hidden">
+      <div>
+        <div>Game Over</div>
+        <span class="small">Press Space to restart</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.getElementById("score");
+    const bestEl = document.getElementById("best");
+    const startOverlay = document.getElementById("startOverlay");
+    const messageEl = document.getElementById("message");
+
+    const W = canvas.width;
+    const H = canvas.height;
+    const keys = {};
+
+    let started = false;
+    let gameOver = false;
+    let score = 0;
+    let best = Number(localStorage.getItem("dodge-best") || 0);
+    let spawnTimer = 0;
+
+    bestEl.textContent = best;
+
+    const player = {
+      x: W / 2,
+      y: H - 60,
+      w: 26,
+      h: 42,
+      speed: 4.5
+    };
+
+    const obstacles = [];
+
+    function resetGame() {
+      player.x = W / 2;
+      player.y = H - 60;
+      obstacles.length = 0;
+      spawnTimer = 0;
+      score = 0;
+      scoreEl.textContent = score;
+      started = false;
+      gameOver = false;
+      startOverlay.classList.remove("hidden");
+      messageEl.classList.add("hidden");
+    }
+
+    function startGame() {
+      if (started || gameOver) return;
+      started = true;
+      startOverlay.classList.add("hidden");
+    }
+
+    function spawnObstacle() {
+      const side = Math.floor(Math.random() * 4);
+      const size = 18 + Math.random() * 28;
+      const speed = 2.0 + Math.random() * 2.4 + score * 0.04;
+
+      let x = 0;
+      let y = 0;
+      let vx = 0;
+      let vy = 0;
+
+      if (side === 0) { // top
+        x = Math.random() * (W - 80) + 40;
+        y = -size;
+        vy = speed;
+      } else if (side === 1) { // bottom
+        x = Math.random() * (W - 80) + 40;
+        y = H + size;
+        vy = -speed;
+      } else if (side === 2) { // left
+        x = -size;
+        y = Math.random() * (H - 80) + 40;
+        vx = speed;
+      } else { // right
+        x = W + size;
+        y = Math.random() * (H - 80) + 40;
+        vx = -speed;
+      }
+
+      obstacles.push({
+        x,
+        y,
+        w: size,
+        h: size,
+        vx,
+        vy,
+        color: `hsl(${Math.random() * 60 + 10}, 80%, 60%)`
+      });
+    }
+
+    function update() {
+      if (!started || gameOver) return;
+
+      if (keys["ArrowLeft"] || keys["a"]) player.x -= player.speed;
+      if (keys["ArrowRight"] || keys["d"]) player.x += player.speed;
+      if (keys["ArrowUp"] || keys["w"]) player.y -= player.speed;
+      if (keys["ArrowDown"] || keys["s"]) player.y += player.speed;
+
+      player.x = Math.max(player.w / 2, Math.min(W - player.w / 2, player.x));
+      player.y = Math.max(player.h / 2, Math.min(H - player.h / 2, player.y));
+
+      spawnTimer += 1;
+      if (spawnTimer > Math.max(18, 50 - score * 0.5)) {
+        spawnObstacle();
+        spawnTimer = 0;
+      }
+
+      for (const block of obstacles) {
+        block.x += block.vx;
+        block.y += block.vy;
+      }
+
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const b = obstacles[i];
+        if (
+          b.x > W + 100 || b.x < -100 ||
+          b.y > H + 100 || b.y < -100
+        ) {
+          obstacles.splice(i, 1);
+        }
+      }
+
+      for (const b of obstacles) {
+        const hit =
+          player.x - player.w / 2 < b.x + b.w &&
+          player.x + player.w / 2 > b.x &&
+          player.y - player.h / 2 < b.y + b.h &&
+          player.y + player.h / 2 > b.y;
+
+        if (hit) {
+          gameOver = true;
+          best = Math.max(best, Math.floor(score));
+          localStorage.setItem("dodge-best", best);
+          bestEl.textContent = best;
+          messageEl.classList.remove("hidden");
+          return;
+        }
+      }
+
+      score += 0.06;
+      scoreEl.textContent = Math.floor(score);
+    }
+
+    function drawBackground() {
+      ctx.fillStyle = "#1b1b1b";
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.fillStyle = "#2d2d2d";
+      ctx.fillRect(120, 0, W - 240, H);
+
+      ctx.strokeStyle = "#f1f1f1";
+      ctx.lineWidth = 4;
+      ctx.setLineDash([18, 18]);
+
+      ctx.beginPath();
+      ctx.moveTo(W / 2, 0);
+      ctx.lineTo(W / 2, H);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(W / 2 - 110, 0);
+      ctx.lineTo(W / 2 - 110, H);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(W / 2 + 110, 0);
+      ctx.lineTo(W / 2 + 110, H);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+    }
+
+    function drawPlayer() {
+      const { x, y, w, h } = player;
+
+      ctx.save();
+      ctx.translate(x, y);
+
+      ctx.fillStyle = "#38bdf8";
+      ctx.fillRect(-w / 2, -h / 2, w, h);
+
+      ctx.fillStyle = "#dbeafe";
+      ctx.fillRect(-w / 2 + 6, -h / 2 + 6, w - 12, h / 2 - 6);
+
+      ctx.fillStyle = "#fef08a";
+      ctx.fillRect(-w / 2 + 3, -h / 2 + 3, 5, 7);
+      ctx.fillRect(w / 2 - 8, -h / 2 + 3, 5, 7);
+
+      ctx.fillStyle = "#fca5a5";
+      ctx.fillRect(-w / 2 + 3, h / 2 - 10, 5, 7);
+      ctx.fillRect(w / 2 - 8, h / 2 - 10, 5, 7);
+
+      ctx.restore();
+    }
+
+    function drawObstacle(b) {
+      ctx.fillStyle = b.color;
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.strokeStyle = "rgba(0,0,0,0.4)";
+      ctx.strokeRect(b.x, b.y, b.w, b.h);
+    }
+
+    function draw() {
+      drawBackground();
+
+      for (const b of obstacles) {
+        drawObstacle(b);
+      }
+
+      drawPlayer();
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.addEventListener("keydown", (e) => {
+      const key = e.key.toLowerCase();
+      keys[e.key] = true;
+      keys[key] = true;
+
+      if (!started && !gameOver) {
+        startGame();
+      }
+
+      if (gameOver && e.code === "Space") {
+        resetGame();
+      }
+    });
+
+    window.addEventListener("keyup", (e) => {
+      keys[e.key] = false;
+      keys[e.key.toLowerCase()] = false;
+    });
+
+    resetGame();
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
