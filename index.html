@@ -10,7 +10,7 @@
       display: grid;
       place-items: center;
       min-height: 100vh;
-      background: #111;
+      background: linear-gradient(#0a0d12, #111827);
       font-family: Arial, sans-serif;
       color: white;
     }
@@ -19,16 +19,17 @@
       position: relative;
       width: 520px;
       height: 520px;
-      border: 4px solid #fff;
-      background: #1a1a1a;
-      box-shadow: 0 0 25px rgba(255,255,255,0.15);
+      border: 4px solid #dfe7ef;
+      background: #111827;
+      box-shadow: 0 0 30px rgba(125, 211, 252, 0.2);
+      overflow: hidden;
     }
 
     canvas {
       display: block;
       width: 100%;
       height: 100%;
-      background: #202020;
+      background: #0f172a;
     }
 
     #hud {
@@ -39,6 +40,9 @@
       font-size: 18px;
       font-weight: bold;
       text-shadow: 1px 1px 2px #000;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 6px 10px;
+      border-radius: 8px;
     }
 
     #startOverlay,
@@ -50,12 +54,12 @@
       text-align: center;
       font-size: 28px;
       font-weight: bold;
-      background: rgba(0,0,0,0.52);
+      background: rgba(0, 0, 0, 0.48);
       z-index: 3;
     }
 
     #startOverlay {
-      background: rgba(0,0,0,0.7);
+      background: rgba(10, 14, 22, 0.72);
     }
 
     #startOverlay.hidden,
@@ -78,7 +82,7 @@
 
     <div id="startOverlay">
       <div>
-        <div>Dodge Drive</div>
+        <div style="font-size: 36px;">Dodge Drive</div>
         <span class="small">Press an arrow key or Space to start</span>
       </div>
     </div>
@@ -114,8 +118,8 @@
     const player = {
       x: W / 2,
       y: H - 60,
-      w: 26,
-      h: 42,
+      w: 32,
+      h: 52,
       speed: 4.5
     };
 
@@ -142,29 +146,33 @@
 
     function spawnObstacle() {
       const side = Math.floor(Math.random() * 4);
-      const size = 18 + Math.random() * 28;
-      const speed = 2.0 + Math.random() * 2.4 + score * 0.04;
+      const size = 16 + Math.random() * 24;
+      const speed = 2.2 + Math.random() * 2.8 + score * 0.04;
 
       let x = 0;
       let y = 0;
       let vx = 0;
       let vy = 0;
 
-      if (side === 0) { // top
-        x = Math.random() * (W - 80) + 40;
-        y = -size;
+      if (side === 0) {
+        // top / road ahead
+        x = Math.random() * (W - 120) + 60;
+        y = -30;
         vy = speed;
-      } else if (side === 1) { // bottom
-        x = Math.random() * (W - 80) + 40;
-        y = H + size;
+      } else if (side === 1) {
+        // bottom / behind
+        x = Math.random() * (W - 120) + 60;
+        y = H + 30;
         vy = -speed;
-      } else if (side === 2) { // left
-        x = -size;
-        y = Math.random() * (H - 80) + 40;
+      } else if (side === 2) {
+        // left
+        x = -30;
+        y = Math.random() * (H - 100) + 50;
         vx = speed;
-      } else { // right
-        x = W + size;
-        y = Math.random() * (H - 80) + 40;
+      } else {
+        // right
+        x = W + 30;
+        y = Math.random() * (H - 100) + 50;
         vx = -speed;
       }
 
@@ -175,7 +183,7 @@
         h: size,
         vx,
         vy,
-        color: `hsl(${Math.random() * 60 + 10}, 80%, 60%)`
+        color: `hsl(${Math.random() * 60 + 10}, 85%, 60%)`
       });
     }
 
@@ -191,7 +199,7 @@
       player.y = Math.max(player.h / 2, Math.min(H - player.h / 2, player.y));
 
       spawnTimer += 1;
-      if (spawnTimer > Math.max(18, 50 - score * 0.5)) {
+      if (spawnTimer > Math.max(18, 48 - score * 0.5)) {
         spawnObstacle();
         spawnTimer = 0;
       }
@@ -203,10 +211,7 @@
 
       for (let i = obstacles.length - 1; i >= 0; i--) {
         const b = obstacles[i];
-        if (
-          b.x > W + 100 || b.x < -100 ||
-          b.y > H + 100 || b.y < -100
-        ) {
+        if (b.x > W + 120 || b.x < -120 || b.y > H + 120 || b.y < -120) {
           obstacles.splice(i, 1);
         }
       }
@@ -228,37 +233,66 @@
         }
       }
 
-      score += 0.06;
+      score += 0.08;
       scoreEl.textContent = Math.floor(score);
     }
 
     function drawBackground() {
-      ctx.fillStyle = "#1b1b1b";
+      ctx.fillStyle = "#0f172a";
       ctx.fillRect(0, 0, W, H);
 
-      ctx.fillStyle = "#2d2d2d";
-      ctx.fillRect(120, 0, W - 240, H);
+      // sky
+      const sky = ctx.createLinearGradient(0, 0, 0, H / 2);
+      sky.addColorStop(0, "#1d4ed8");
+      sky.addColorStop(1, "#0f172a");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, W, H / 2);
 
-      ctx.strokeStyle = "#f1f1f1";
+      // road perspective
+      ctx.fillStyle = "#374151";
+      ctx.beginPath();
+      ctx.moveTo(W * 0.22, H * 0.12);
+      ctx.lineTo(W * 0.78, H * 0.12);
+      ctx.lineTo(W * 0.95, H);
+      ctx.lineTo(W * 0.05, H);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(255,255,255,0.8)";
+      ctx.lineWidth = 2;
+
+      // lane dividers
+      for (let i = 0; i < 5; i++) {
+        const y = H * 0.18 + i * (H * 0.16);
+        const x1 = W * (0.28 + i * 0.1);
+        const x2 = W * (0.72 - i * 0.1);
+        ctx.beginPath();
+        ctx.moveTo(x1, y);
+        ctx.lineTo(W / 2 - 10, H * 0.85 + i * 30);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(x2, y);
+        ctx.lineTo(W / 2 + 10, H * 0.85 + i * 30);
+        ctx.stroke();
+      }
+
+      // guard rails
+      ctx.strokeStyle = "#cbd5e1";
       ctx.lineWidth = 4;
-      ctx.setLineDash([18, 18]);
-
       ctx.beginPath();
-      ctx.moveTo(W / 2, 0);
-      ctx.lineTo(W / 2, H);
+      ctx.moveTo(W * 0.16, H * 0.12);
+      ctx.lineTo(W * 0.06, H);
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(W / 2 - 110, 0);
-      ctx.lineTo(W / 2 - 110, H);
+      ctx.moveTo(W * 0.84, H * 0.12);
+      ctx.lineTo(W * 0.94, H);
       ctx.stroke();
 
-      ctx.beginPath();
-      ctx.moveTo(W / 2 + 110, 0);
-      ctx.lineTo(W / 2 + 110, H);
-      ctx.stroke();
-
-      ctx.setLineDash([]);
+      // dashboard glow
+      ctx.fillStyle = "rgba(14, 165, 233, 0.18)";
+      ctx.fillRect(0, H - 95, W, 95);
     }
 
     function drawPlayer() {
@@ -267,26 +301,41 @@
       ctx.save();
       ctx.translate(x, y);
 
+      // car body
       ctx.fillStyle = "#38bdf8";
       ctx.fillRect(-w / 2, -h / 2, w, h);
 
-      ctx.fillStyle = "#dbeafe";
-      ctx.fillRect(-w / 2 + 6, -h / 2 + 6, w - 12, h / 2 - 6);
+      // windshield
+      ctx.fillStyle = "rgba(224, 242, 254, 0.75)";
+      ctx.fillRect(-w / 2 + 6, -h / 2 + 8, w - 12, h / 2 - 12);
 
+      // wheels
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(-w / 2 - 2, -h / 2 + 4, 6, 14);
+      ctx.fillRect(w / 2 - 4, -h / 2 + 4, 6, 14);
+      ctx.fillRect(-w / 2 - 2, h / 2 - 18, 6, 14);
+      ctx.fillRect(w / 2 - 4, h / 2 - 18, 6, 14);
+
+      // lights
       ctx.fillStyle = "#fef08a";
-      ctx.fillRect(-w / 2 + 3, -h / 2 + 3, 5, 7);
-      ctx.fillRect(w / 2 - 8, -h / 2 + 3, 5, 7);
+      ctx.fillRect(-w / 2 + 4, -h / 2 + 2, 6, 7);
+      ctx.fillRect(w / 2 - 10, -h / 2 + 2, 6, 7);
 
       ctx.fillStyle = "#fca5a5";
-      ctx.fillRect(-w / 2 + 3, h / 2 - 10, 5, 7);
-      ctx.fillRect(w / 2 - 8, h / 2 - 10, 5, 7);
+      ctx.fillRect(-w / 2 + 4, h / 2 - 9, 6, 7);
+      ctx.fillRect(w / 2 - 10, h / 2 - 9, 6, 7);
 
       ctx.restore();
     }
 
     function drawObstacle(b) {
+      ctx.save();
       ctx.fillStyle = b.color;
+      ctx.shadowBlur = 18;
+      ctx.shadowColor = b.color;
       ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.restore();
+
       ctx.strokeStyle = "rgba(0,0,0,0.4)";
       ctx.strokeRect(b.x, b.y, b.w, b.h);
     }
